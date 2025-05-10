@@ -1,0 +1,12 @@
+{
+  "files": {
+    "main.js": "/togglenote/static/js/main.b90426e5.js",
+    "static/js/453.d0cb8caa.chunk.js": "/togglenote/static/js/453.d0cb8caa.chunk.js",
+    "index.html": "/togglenote/index.html",
+    "main.b90426e5.js.map": "/togglenote/static/js/main.b90426e5.js.map",
+    "453.d0cb8caa.chunk.js.map": "/togglenote/static/js/453.d0cb8caa.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.b90426e5.js"
+  ]
+}
