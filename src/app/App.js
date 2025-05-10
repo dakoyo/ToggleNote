@@ -5,7 +5,7 @@ import { lightTheme, darkTheme } from './styles/theme';
 import { GlobalStyle } from './styles/GlobalStyle';
 import Sidebar from './components/Sidebar';
 import MainDisplay from './components/MainDisplay';
-import AlertModal from './components/common/AlertModal'; // 新しくインポート
+import AlertModal from './components/common/AlertModal';
 
 const AppContainer = styled.div`
     display: flex;
@@ -37,7 +37,13 @@ export default function App() {
         message: '',
         onConfirm: null,
         showConfirmButton: false,
+        confirmText: 'OK',
+        cancelText: 'キャンセル',
     });
+
+    const [editingNoteId, setEditingNoteId] = useState(null);
+    const [editingNoteTitle, setEditingNoteTitle] = useState('');
+    const [originalTitleBeforeEdit, setOriginalTitleBeforeEdit] = useState('');
 
     useEffect(() => {
         const savedNotes = getCookie('ToggleNote-Notes');
@@ -68,21 +74,25 @@ export default function App() {
     }, [isDarkMode]);
 
     useEffect(() => {
-        if (activeNoteId) {
+        if (activeNoteId && !editingNoteId) { // 編集中はコンテンツを更新しない
             const currentNote = notes.find(note => note.id === activeNoteId);
-            if (currentNote) setEditingContent(currentNote.content);
-        } else {
+            if (currentNote) {
+                 setEditingContent(currentNote.content);
+            }
+        } else if (!activeNoteId) {
             setEditingContent('');
         }
-    }, [activeNoteId, notes]);
+    }, [activeNoteId, notes, editingNoteId]);
 
-    const showAlert = (title, message, onConfirmCallback = null, showConfirm = false) => {
+    const showAlert = (title, message, onConfirmCallback = null, showConfirm = false, confirmBtnText = 'OK', cancelBtnText = '閉じる') => {
         setAlertInfo({
             isOpen: true,
             title: title,
             message: message,
             onConfirm: onConfirmCallback,
             showConfirmButton: showConfirm,
+            confirmText: confirmBtnText,
+            cancelText: cancelBtnText,
         });
     };
 
@@ -90,10 +100,32 @@ export default function App() {
         setAlertInfo(prev => ({ ...prev, isOpen: false }));
     };
 
-
     const handleCreateNote = (e) => {
         e.preventDefault();
-        if (!newNoteTitle.trim()) { showAlert('ノートのタイトルを入力してください。'); return; }
+        if (editingNoteId) {
+            showAlert(
+                "編集中",
+                "タイトル編集中です。変更を破棄して新しいノートを作成しますか？",
+                () => {
+                    setEditingNoteId(null);
+                    setEditingNoteTitle('');
+                    setOriginalTitleBeforeEdit('');
+                    proceedWithCreateNote();
+                },
+                true,
+                "作成",
+                "キャンセル"
+            );
+            return;
+        }
+        proceedWithCreateNote();
+    };
+
+    const proceedWithCreateNote = () => {
+        if (!newNoteTitle.trim()) {
+            showAlert('エラー', 'ノートのタイトルを入力してください。');
+            return;
+        }
         const newNote = {
             id: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             title: newNoteTitle.trim(),
@@ -105,7 +137,27 @@ export default function App() {
         setNewNoteTitle('');
     };
 
-    const handleSelectNote = (id) => setActiveNoteId(id);
+    const handleSelectNote = (id) => {
+        if (editingNoteId && editingNoteId !== id) {
+            showAlert(
+                "編集中",
+                "タイトル編集中です。変更を破棄して別のノートを選択しますか？",
+                () => {
+                    setEditingNoteId(null);
+                    setEditingNoteTitle('');
+                    setOriginalTitleBeforeEdit('');
+                    setActiveNoteId(id);
+                },
+                true,
+                "選択",
+                "キャンセル"
+            );
+            return;
+        } else if (editingNoteId === id) {
+            return;
+        }
+        setActiveNoteId(id);
+    };
 
     const handleContentChange = (e) => {
         const newContent = e.target.value;
@@ -118,30 +170,77 @@ export default function App() {
     };
 
     const handleDeleteNote = (idToDelete) => {
-        if (showAlert(
+        if (editingNoteId === idToDelete) {
+            showAlert("エラー", "編集中はノートを削除できません。編集を完了またはキャンセルしてください。");
+            return;
+        }
+        showAlert(
             "ノート削除の確認",
-            "本当にこのノートを削除しますか？この操作は元に戻せません。",
-            () => { // onConfirm コールバック
+            `ノート「${notes.find(n=>n.id === idToDelete)?.title || ''}」を本当に削除しますか？この操作は元に戻せません。`,
+            () => {
                 const newNotes = notes.filter(note => note.id !== idToDelete);
                 setNotes(newNotes);
                 if (activeNoteId === idToDelete) {
                     setActiveNoteId(newNotes.length > 0 ? newNotes[0].id : null);
                 }
             },
-            true
-        )) {
-            const newNotes = notes.filter(note => note.id !== idToDelete);
-            setNotes(newNotes);
-            if (activeNoteId === idToDelete) {
-                setActiveNoteId(newNotes.length > 0 ? newNotes[0].id : null);
-            }
-        }
+            true,
+            "削除"
+        );
     };
 
     const activeNote = useMemo(() => notes.find(note => note.id === activeNoteId), [notes, activeNoteId]);
 
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
     const toggleEditorVisibility = () => setIsPreviewEditorHidden(!isPreviewEditorHidden);
+
+    const handleEditNoteTitleStart = (noteId, currentTitle) => {
+        if (editingNoteId && editingNoteId !== noteId) {
+            showAlert(
+                "編集中",
+                "別のタイトルを編集中です。現在の変更を破棄して新しい編集を開始しますか？",
+                () => {
+                    setEditingNoteId(noteId);
+                    setEditingNoteTitle(currentTitle);
+                    setOriginalTitleBeforeEdit(currentTitle);
+                },
+                true,
+                "編集開始",
+                "キャンセル"
+            );
+            return;
+        }
+        setEditingNoteId(noteId);
+        setEditingNoteTitle(currentTitle);
+        setOriginalTitleBeforeEdit(currentTitle);
+    };
+
+    const handleEditingTitleChange = (e) => {
+        setEditingNoteTitle(e.target.value);
+    };
+
+    const handleSaveNoteTitle = (noteId) => {
+        if (!editingNoteTitle.trim()) {
+            showAlert("エラー", "タイトルは空にできません。元のタイトルに戻しますか？", () => {
+                setEditingNoteTitle(originalTitleBeforeEdit);
+            }, true, "元に戻す");
+            return;
+        }
+        setNotes(prevNotes =>
+            prevNotes.map(note =>
+                note.id === noteId ? { ...note, title: editingNoteTitle.trim() } : note
+            )
+        );
+        setEditingNoteId(null);
+        setEditingNoteTitle('');
+        setOriginalTitleBeforeEdit('');
+    };
+
+    const handleCancelEditNoteTitle = () => {
+        setEditingNoteId(null);
+        setEditingNoteTitle('');
+        setOriginalTitleBeforeEdit('');
+    };
 
     const currentTheme = isDarkMode ? darkTheme : lightTheme;
 
@@ -159,6 +258,12 @@ export default function App() {
                     handleDeleteNote={handleDeleteNote}
                     isDarkMode={isDarkMode}
                     toggleTheme={toggleTheme}
+                    editingNoteId={editingNoteId}
+                    editingNoteTitle={editingNoteTitle}
+                    handleEditNoteTitleStart={handleEditNoteTitleStart}
+                    handleEditingTitleChange={handleEditingTitleChange}
+                    handleSaveNoteTitle={handleSaveNoteTitle}
+                    handleCancelEditNoteTitle={handleCancelEditNoteTitle}
                 />
                 <MainDisplay
                     activeNote={activeNote}
@@ -175,7 +280,8 @@ export default function App() {
                 onClose={closeAlert}
                 onConfirm={alertInfo.onConfirm}
                 showConfirmButton={alertInfo.showConfirmButton}
-                confirmText="削除" // handleDeleteNote の場合
+                confirmText={alertInfo.confirmText}
+                cancelText={alertInfo.cancelText}
             />
         </ThemeProvider>
     );
