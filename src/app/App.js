@@ -6,7 +6,7 @@ import { GlobalStyle } from './styles/GlobalStyle';
 import Sidebar from './components/Sidebar';
 import MainDisplay from './components/MainDisplay';
 import AlertModal from './components/common/AlertModal';
-import SettingsModal from './components/SettingsModal'; // 追加
+import SettingsModal from './components/SettingsModal';
 
 const AppContainer = styled.div`
     display: flex;
@@ -18,7 +18,7 @@ const AppContainer = styled.div`
     }
 `;
 
-const DEFAULT_INDENT_SIZE = 4; // デフォルトのインデントサイズ
+const DEFAULT_INDENT_SIZE = 4;
 
 export default function App() {
     const [notes, setNotes] = useState([]);
@@ -48,21 +48,17 @@ export default function App() {
     const [editingNoteTitle, setEditingNoteTitle] = useState('');
     const [originalTitleBeforeEdit, setOriginalTitleBeforeEdit] = useState('');
 
-    // --- 設定関連の状態 ---
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); // 設定モーダルの表示状態
-    const [indentSize, setIndentSize] = useState(() => { // インデントサイズ
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [indentSize, setIndentSize] = useState(() => {
         const savedIndentSize = getCookie('ToggleNote-IndentSize');
         if (savedIndentSize) {
             const parsedSize = parseInt(savedIndentSize, 10);
-            // 読み込んだ値が有効な範囲か確認
             if (!isNaN(parsedSize) && parsedSize >= 1 && parsedSize <= 8) {
                 return parsedSize;
             }
         }
-        return DEFAULT_INDENT_SIZE; // デフォルト値
+        return DEFAULT_INDENT_SIZE;
     });
-
-    // --- Effect Hooks ---
 
     useEffect(() => {
         const savedNotes = getCookie('ToggleNote-Notes');
@@ -92,11 +88,9 @@ export default function App() {
         document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
     }, [isDarkMode]);
 
-    // 設定値 (インデントサイズ) の保存
     useEffect(() => {
         setCookie('ToggleNote-IndentSize', indentSize.toString(), 365);
     }, [indentSize]);
-
 
     useEffect(() => {
         if (activeNoteId && !editingNoteId) {
@@ -109,7 +103,7 @@ export default function App() {
         }
     }, [activeNoteId, notes, editingNoteId]);
 
-    // --- アラート関連関数 ---
+
     const showAlert = (title, message, onConfirmCallback = null, showConfirm = false, confirmBtnText = 'OK', cancelBtnText = '閉じる') => {
         setAlertInfo({
             isOpen: true,
@@ -126,7 +120,6 @@ export default function App() {
         setAlertInfo(prev => ({ ...prev, isOpen: false }));
     };
 
-    // --- ノート操作関連関数 ---
     const handleCreateNote = (e) => {
         e.preventDefault();
         if (editingNoteId) {
@@ -196,6 +189,7 @@ export default function App() {
         );
     };
 
+
     const handleDeleteNote = (idToDelete) => {
         if (editingNoteId === idToDelete) {
             showAlert("エラー", "編集中はノートを削除できません。編集を完了またはキャンセルしてください。");
@@ -221,7 +215,6 @@ export default function App() {
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
     const toggleEditorVisibility = () => setIsPreviewEditorHidden(!isPreviewEditorHidden);
 
-    // --- タイトル編集関連関数 ---
     const handleEditNoteTitleStart = (noteId, currentTitle) => {
         if (editingNoteId && editingNoteId !== noteId) {
             showAlert(
@@ -270,7 +263,6 @@ export default function App() {
         setOriginalTitleBeforeEdit('');
     };
 
-    // --- 設定画面関連関数 ---
     const handleOpenSettings = () => {
         setIsSettingsModalOpen(true);
     };
@@ -281,9 +273,7 @@ export default function App() {
 
     const handleSaveSettings = (newIndentSize) => {
         setIndentSize(newIndentSize);
-        // Cookie保存はuseEffectで行われる
     };
-
 
     const currentTheme = isDarkMode ? darkTheme : lightTheme;
 
@@ -308,7 +298,7 @@ export default function App() {
                     handleSaveNoteTitle={handleSaveNoteTitle}
                     handleCancelEditNoteTitle={handleCancelEditNoteTitle}
                     handleOpenSettings={handleOpenSettings}
-                    />
+                />
                 <MainDisplay
                     activeNote={activeNote}
                     editingContent={editingContent}
