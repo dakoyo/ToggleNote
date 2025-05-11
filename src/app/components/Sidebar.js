@@ -8,8 +8,16 @@ import {
     IoMdCreate,
     IoMdCheckmarkCircleOutline,
     IoMdCloseCircleOutline,
+    IoMdSettings
 } from 'react-icons/io';
 import { IconButton } from './common/IconButton';
+
+const HeaderButtons = styled.div` // 設定ボタンとテーマ切り替えボタンをまとめるコンテナ
+    display: flex;
+    align-items: center;
+    gap: 5px; /* ボタン間のスペース */
+`;
+
 
 const NoteListItem = styled.li`
     padding: 10px 12px;
@@ -120,11 +128,9 @@ const SidebarHeader = styled.header`
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
-    h2 {
-        margin: 0;
-        font-size: 1.25em;
-    }
+    h2 { margin: 0; font-size: 1.25em; }
 `;
+
 
 const NewNoteForm = styled.form`
     display: flex;
@@ -201,6 +207,7 @@ const Sidebar = ({
     handleEditingTitleChange,
     handleSaveNoteTitle,
     handleCancelEditNoteTitle,
+    handleOpenSettings
 }) => {
     const handleInputKeyDown = (e, noteId) => {
         if (e.key === 'Enter') {
@@ -214,14 +221,23 @@ const Sidebar = ({
         <StyledSidebar>
             <SidebarHeader>
                 <h2>ノート</h2>
-                <IconButton
-                    onClick={toggleTheme}
-                    title={isDarkMode ? "ライトモード" : "ダークモード"}
-                >
-                    {isDarkMode ? <IoMdSunny /> : <IoMdMoon />}
-                </IconButton>
+                <HeaderButtons> {/* ボタンをコンテナで囲む */}
+                    <IconButton
+                        onClick={handleOpenSettings} // 設定ボタン
+                        title="設定"
+                    >
+                        <IoMdSettings />
+                    </IconButton>
+                    <IconButton
+                        onClick={toggleTheme}
+                        title={isDarkMode ? "ライトモード" : "ダークモード"}
+                    >
+                        {isDarkMode ? <IoMdSunny /> : <IoMdMoon />}
+                    </IconButton>
+                </HeaderButtons>
             </SidebarHeader>
-            <NewNoteForm onSubmit={handleCreateNote}>
+            {/* ... 既存のフォームやノートリスト ... */}
+             <NewNoteForm onSubmit={handleCreateNote}>
                 <NewNoteInput
                     type="text" value={newNoteTitle}
                     onChange={(e) => setNewNoteTitle(e.target.value)}
@@ -249,8 +265,6 @@ const Sidebar = ({
                                     onChange={handleEditingTitleChange}
                                     onKeyDown={(e) => handleInputKeyDown(e, note.id)}
                                     autoFocus
-                                    onBlur={() => setTimeout(() => {
-                                    }, 100)}
                                 />
                             ) : (
                                 <NoteTitle>{note.title}</NoteTitle>

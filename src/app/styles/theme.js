@@ -30,6 +30,22 @@ export const lightTheme = {
     headerControlsBg: '#f8f9fa',
     iconColor: '#495057',
     iconHoverBg: '#ced4da',
+    modalBg: 'rgba(0, 0, 0, 0.5)', // モーダルオーバーレイの背景
+    modalContentBg: '#fff', // モーダルコンテンツの背景
+    modalContentBorder: '#ddd',
+    modalTitleColor: '#333',
+    modalLabelColor: '#555',
+    modalInputBg: '#fff',
+    modalInputBorder: '#ccc',
+    modalInputFocusBorder: '#007bff',
+    modalInputFocusBoxShadow: '0 0 0 0.2rem rgba(0,123,255,.25)',
+    modalButtonPrimaryBg: '#007bff',
+    modalButtonPrimaryText: '#fff',
+    modalButtonPrimaryHoverBg: '#0056b3',
+    modalButtonSecondaryBg: '#6c757d',
+    modalButtonSecondaryText: '#fff',
+    modalButtonSecondaryHoverBg: '#545b62',
+    modalButtonBorderRadius: '4px',
 };
 
 export const darkTheme = {
@@ -64,4 +80,20 @@ export const darkTheme = {
     headerControlsBg: '#343a40',
     iconColor: '#adb5bd',
     iconHoverBg: '#6c757d',
+    modalBg: 'rgba(0, 0, 0, 0.7)',
+    modalContentBg: '#343a40',
+    modalContentBorder: '#495057',
+    modalTitleColor: '#f8f9fa',
+    modalLabelColor: '#ced4da',
+    modalInputBg: '#495057',
+    modalInputBorder: '#6c757d',
+    modalInputFocusBorder: '#61dafb',
+    modalInputFocusBoxShadow: '0 0 0 0.2rem rgba(97,218,251,.25)',
+    modalButtonPrimaryBg: '#61dafb',
+    modalButtonPrimaryText: '#212529',
+    modalButtonPrimaryHoverBg: '#37b4d8',
+    modalButtonSecondaryBg: '#adb5bd',
+    modalButtonSecondaryText: '#212529',
+    modalButtonSecondaryHoverBg: '#6c757d',
+    modalButtonBorderRadius: '4px',
 };

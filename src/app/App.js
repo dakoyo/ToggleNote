@@ -6,6 +6,7 @@ import { GlobalStyle } from './styles/GlobalStyle';
 import Sidebar from './components/Sidebar';
 import MainDisplay from './components/MainDisplay';
 import AlertModal from './components/common/AlertModal';
+import SettingsModal from './components/SettingsModal'; // 追加
 
 const AppContainer = styled.div`
     display: flex;
@@ -16,6 +17,8 @@ const AppContainer = styled.div`
         flex-direction: column;
     }
 `;
+
+const DEFAULT_INDENT_SIZE = 4; // デフォルトのインデントサイズ
 
 export default function App() {
     const [notes, setNotes] = useState([]);
@@ -38,12 +41,28 @@ export default function App() {
         onConfirm: null,
         showConfirmButton: false,
         confirmText: 'OK',
-        cancelText: 'キャンセル',
+        cancelText: '閉じる',
     });
 
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [editingNoteTitle, setEditingNoteTitle] = useState('');
     const [originalTitleBeforeEdit, setOriginalTitleBeforeEdit] = useState('');
+
+    // --- 設定関連の状態 ---
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); // 設定モーダルの表示状態
+    const [indentSize, setIndentSize] = useState(() => { // インデントサイズ
+        const savedIndentSize = getCookie('ToggleNote-IndentSize');
+        if (savedIndentSize) {
+            const parsedSize = parseInt(savedIndentSize, 10);
+            // 読み込んだ値が有効な範囲か確認
+            if (!isNaN(parsedSize) && parsedSize >= 1 && parsedSize <= 8) {
+                return parsedSize;
+            }
+        }
+        return DEFAULT_INDENT_SIZE; // デフォルト値
+    });
+
+    // --- Effect Hooks ---
 
     useEffect(() => {
         const savedNotes = getCookie('ToggleNote-Notes');
@@ -73,8 +92,14 @@ export default function App() {
         document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
     }, [isDarkMode]);
 
+    // 設定値 (インデントサイズ) の保存
     useEffect(() => {
-        if (activeNoteId && !editingNoteId) { // 編集中はコンテンツを更新しない
+        setCookie('ToggleNote-IndentSize', indentSize.toString(), 365);
+    }, [indentSize]);
+
+
+    useEffect(() => {
+        if (activeNoteId && !editingNoteId) {
             const currentNote = notes.find(note => note.id === activeNoteId);
             if (currentNote) {
                  setEditingContent(currentNote.content);
@@ -84,6 +109,7 @@ export default function App() {
         }
     }, [activeNoteId, notes, editingNoteId]);
 
+    // --- アラート関連関数 ---
     const showAlert = (title, message, onConfirmCallback = null, showConfirm = false, confirmBtnText = 'OK', cancelBtnText = '閉じる') => {
         setAlertInfo({
             isOpen: true,
@@ -100,6 +126,7 @@ export default function App() {
         setAlertInfo(prev => ({ ...prev, isOpen: false }));
     };
 
+    // --- ノート操作関連関数 ---
     const handleCreateNote = (e) => {
         e.preventDefault();
         if (editingNoteId) {
@@ -194,6 +221,7 @@ export default function App() {
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
     const toggleEditorVisibility = () => setIsPreviewEditorHidden(!isPreviewEditorHidden);
 
+    // --- タイトル編集関連関数 ---
     const handleEditNoteTitleStart = (noteId, currentTitle) => {
         if (editingNoteId && editingNoteId !== noteId) {
             showAlert(
@@ -242,6 +270,21 @@ export default function App() {
         setOriginalTitleBeforeEdit('');
     };
 
+    // --- 設定画面関連関数 ---
+    const handleOpenSettings = () => {
+        setIsSettingsModalOpen(true);
+    };
+
+    const handleCloseSettings = () => {
+        setIsSettingsModalOpen(false);
+    };
+
+    const handleSaveSettings = (newIndentSize) => {
+        setIndentSize(newIndentSize);
+        // Cookie保存はuseEffectで行われる
+    };
+
+
     const currentTheme = isDarkMode ? darkTheme : lightTheme;
 
     return (
@@ -264,13 +307,15 @@ export default function App() {
                     handleEditingTitleChange={handleEditingTitleChange}
                     handleSaveNoteTitle={handleSaveNoteTitle}
                     handleCancelEditNoteTitle={handleCancelEditNoteTitle}
-                />
+                    handleOpenSettings={handleOpenSettings}
+                    />
                 <MainDisplay
                     activeNote={activeNote}
                     editingContent={editingContent}
                     handleContentChange={handleContentChange}
                     isPreviewEditorHidden={isPreviewEditorHidden}
                     toggleEditorVisibility={toggleEditorVisibility}
+                    indentSize={indentSize}
                 />
             </AppContainer>
             <AlertModal
@@ -282,6 +327,12 @@ export default function App() {
                 showConfirmButton={alertInfo.showConfirmButton}
                 confirmText={alertInfo.confirmText}
                 cancelText={alertInfo.cancelText}
+            />
+            <SettingsModal
+                isOpen={isSettingsModalOpen}
+                onClose={handleCloseSettings}
+                currentIndentSize={indentSize}
+                onSave={handleSaveSettings}
             />
         </ThemeProvider>
     );

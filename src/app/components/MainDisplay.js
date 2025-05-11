@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import styled from 'styled-components';
 import {
     IoMdExpand,
@@ -6,7 +6,7 @@ import {
 } from 'react-icons/io';
 import {
     FaHeading, FaBold, FaItalic, FaListUl, FaListOl, FaTable, FaQuoteLeft, FaCode, FaLink, FaImage,
-    FaUndo, FaRedo, FaEyeSlash
+    FaUndo, FaRedo
 } from 'react-icons/fa';
 import MarkdownPreviewComponent from './MarkdownPreview';
 import { IconButton } from './common/IconButton';
@@ -223,6 +223,7 @@ const insertText = (textarea, textToInsert, selectInserted = false, prefix = "",
         textarea.focus();
         textarea.setSelectionRange(newStart, newEnd);
     }
+    return { start: newStart, end: newEnd };
 };
 
 const insertLine = (textarea, lineContent, placeholder = "テキスト") => {
@@ -230,24 +231,114 @@ const insertLine = (textarea, lineContent, placeholder = "テキスト") => {
     const currentText = textarea.value;
     const textBeforeCursor = currentText.substring(0, start);
 
-    let textToInsert = lineContent;
-
-    const insertNewLineBefore = !textBeforeCursor || textBeforeCursor.endsWith('\n') ? '' : '\n';
-    const fullTextToInsert = insertNewLineBefore + textToInsert + '\n';
+    const insertNewLineBefore = (start > 0 && !textBeforeCursor.endsWith('\n')) ? '\n' : '';
+    const fullTextToInsert = insertNewLineBefore + lineContent + '\n';
 
     textarea.setRangeText(fullTextToInsert, start, start, 'end');
     textarea.focus();
 
-    const placeholderIndex = textToInsert.indexOf(placeholder);
+    const insertedStart = start + insertNewLineBefore.length;
+
+    const placeholderIndex = lineContent.indexOf(placeholder);
     if (placeholderIndex !== -1) {
-        const selectionStart = start + (insertNewLineBefore.length) + placeholderIndex;
+        const selectionStart = insertedStart + placeholderIndex;
         const selectionEnd = selectionStart + placeholder.length;
         textarea.setSelectionRange(selectionStart, selectionEnd);
+        return { start: selectionStart, end: selectionEnd };
     } else {
-        const newCursorPos = start + fullTextToInsert.length;
+        const newCursorPos = insertedStart + lineContent.length;
         textarea.setSelectionRange(newCursorPos, newCursorPos);
+        return { start: newCursorPos, end: newCursorPos };
     }
 };
+
+const getLineRange = (textarea) => {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+
+    let lineStart = start;
+    while (lineStart > 0 && value[lineStart - 1] !== '\n') {
+        lineStart--;
+    }
+
+    let lineEnd = end;
+    while (lineEnd < value.length && value[lineEnd] !== '\n') {
+        lineEnd++;
+    }
+
+    return { lineStart, lineEnd };
+};
+const indentLine = (textarea, indentSize = 4) => { // indentSize を受け取る
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    const indent = ' '.repeat(indentSize);
+
+    let lineStart = start;
+    while (lineStart > 0 && value[lineStart - 1] !== '\n') {
+        lineStart--;
+    }
+
+    if (start === end) {
+        textarea.setRangeText(indent, lineStart, lineStart, 'end');
+        textarea.selectionStart = textarea.selectionEnd = start + indent.length;
+    } else {
+        const selectedText = value.substring(lineStart, getLineRange(textarea).lineEnd);
+        const indentedText = selectedText.split('\n').map(line => indent + line).join('\n');
+
+        textarea.setRangeText(indentedText, lineStart, getLineRange(textarea).lineEnd, 'end');
+
+        const newStart = start + indent.length;
+        const newEnd = end + (indentedText.length - selectedText.length);
+        textarea.setSelectionRange(newStart, newEnd);
+    }
+    textarea.focus();
+};
+
+const dedentLine = (textarea, indentSize = 4) => { // indentSize を受け取る
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+
+    let lineStart = start;
+    while (lineStart > 0 && value[lineStart - 1] !== '\n') {
+        lineStart--;
+    }
+
+    if (start === end) {
+        const lineContent = value.substring(lineStart, start);
+        const match = lineContent.match(/^ +/);
+
+        if (match && match[0].length > 0) {
+            const leadingSpaces = match[0];
+            const removeSize = Math.min(indentSize, leadingSpaces.length);
+            textarea.setRangeText('', lineStart, lineStart + removeSize, 'end');
+            textarea.selectionStart = textarea.selectionEnd = start - removeSize;
+        }
+    } else {
+        const selectedText = value.substring(lineStart, getLineRange(textarea).lineEnd);
+        let totalRemoved = 0;
+        const dedentedText = selectedText.split('\n').map(line => {
+            const match = line.match(/^ +/);
+            if (match && match[0].length > 0) {
+                const leadingSpaces = match[0];
+                const removeSize = Math.min(indentSize, leadingSpaces.length);
+                totalRemoved += removeSize;
+                return line.substring(removeSize);
+            }
+            return line;
+        }).join('\n');
+
+        textarea.setRangeText(dedentedText, lineStart, getLineRange(textarea).lineEnd, 'end');
+
+        const newStart = Math.max(lineStart, start - indentSize);
+        const newEnd = Math.max(lineStart, end - totalRemoved);
+        textarea.setSelectionRange(newStart, newEnd);
+    }
+    textarea.focus();
+};
+
 
 const MainDisplay = ({
     activeNote,
@@ -255,8 +346,14 @@ const MainDisplay = ({
     handleContentChange,
     isPreviewEditorHidden,
     toggleEditorVisibility,
+    indentSize, // 追加
 }) => {
     const textareaRef = useRef(null);
+
+    const isMac = useMemo(() => {
+      if (typeof window === 'undefined') return false;
+      return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    }, []);
 
     const handleToolbarClick = (type, payload = {}) => {
         const textarea = textareaRef.current;
@@ -288,13 +385,13 @@ const MainDisplay = ({
                 insertText(textarea, "取り消し線", true, "~~", "~~");
                 break;
             case 'ul':
-                insertText(textarea, "リストアイテム", true, "- ", "");
+                insertLine(textarea, "- リストアイテム");
                 break;
             case 'ol':
-                insertText(textarea, "リストアイテム", true, "1. ", "");
+                insertLine(textarea, "1. リストアイテム");
                 break;
             case 'blockquote':
-                insertText(textarea, "引用文", true, "> ", "");
+                insertLine(textarea, "> 引用文");
                 break;
             case 'code':
                 insertText(textarea, "コード", true, "`", "`");
@@ -311,14 +408,11 @@ const MainDisplay = ({
             case 'table':
                 insertLine(textarea, "| ヘッダー1 | ヘッダー2 |\n|---|---|\n| 内容1   | 内容2   |");
                 break;
-                case 'spoiler':
-                    insertText(textarea, "伏字", true, "||", "||");
-                    break;
             default:
                 break;
         }
 
-        if (!commandExecuted) { // execCommand以外でテキストが変更された場合
+        if (!commandExecuted) {
             const event = new Event('input', { bubbles: true });
             textarea.dispatchEvent(event);
         } else {
@@ -326,6 +420,54 @@ const MainDisplay = ({
             textarea.dispatchEvent(event);
         }
     };
+
+    const handleKeyDown = (event) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const { key, ctrlKey, shiftKey, metaKey } = event;
+
+        const isModifierPressed = isMac ? metaKey : ctrlKey;
+
+        if (key === 'Tab' && !isModifierPressed) {
+            event.preventDefault();
+            if (shiftKey) {
+                dedentLine(textarea, indentSize);
+            } else {
+                indentLine(textarea, indentSize);
+            }
+            const inputEvent = new Event('input', { bubbles: true });
+            textarea.dispatchEvent(inputEvent);
+            return;
+        }
+
+        if (isModifierPressed && key === 'Enter' && !shiftKey) {
+            event.preventDefault();
+            const { lineEnd } = getLineRange(textarea);
+            const insertPos = lineEnd;
+
+            textarea.setRangeText('\n', insertPos, insertPos, 'end');
+            textarea.selectionStart = textarea.selectionEnd = insertPos + 1;
+
+            const inputEvent = new Event('input', { bubbles: true });
+            textarea.dispatchEvent(inputEvent);
+            return;
+        }
+
+         if (isModifierPressed && key === 'Enter' && shiftKey) {
+            event.preventDefault();
+            const { lineStart } = getLineRange(textarea);
+            const insertPos = lineStart;
+
+            textarea.setRangeText('\n', insertPos, insertPos, 'end');
+            textarea.selectionStart = textarea.selectionEnd = insertPos;
+
+            const inputEvent = new Event('input', { bubbles: true });
+            textarea.dispatchEvent(inputEvent);
+            return;
+        }
+    };
+
 
     if (!activeNote) {
         return (
@@ -352,24 +494,24 @@ const MainDisplay = ({
             <EditorPreviewContainer isPreviewEditorHidden={isPreviewEditorHidden} isPreviewAreaMaximized={isPreviewEditorHidden}>
                 <EditorWrapper isPreviewEditorHidden={isPreviewEditorHidden} isPreviewAreaMaximized={false}>
                     <Toolbar>
-                        <ToolbarButton title="元に戻す" onClick={() => handleToolbarClick('undo')}><FaUndo /></ToolbarButton>
-                        <ToolbarButton title="やり直し" onClick={() => handleToolbarClick('redo')}><FaRedo /></ToolbarButton>
+                        <ToolbarButton title="元に戻す (Ctrl/Cmd+Z)" onClick={() => handleToolbarClick('undo')}><FaUndo /></ToolbarButton>
+                        <ToolbarButton title="やり直し (Ctrl/Cmd+Y)" onClick={() => handleToolbarClick('redo')}><FaRedo /></ToolbarButton>
                         <ToolbarButton title="見出し1" onClick={() => handleToolbarClick('heading', { level: 1 })}><FaHeading /></ToolbarButton>
-                        <ToolbarButton title="太字" onClick={() => handleToolbarClick('bold')}><FaBold /></ToolbarButton>
-                        <ToolbarButton title="イタリック" onClick={() => handleToolbarClick('italic')}><FaItalic /></ToolbarButton>
+                        <ToolbarButton title="太字 (Ctrl/Cmd+B)" onClick={() => handleToolbarClick('bold')}><FaBold /></ToolbarButton>
+                        <ToolbarButton title="イタリック (Ctrl/Cmd+I)" onClick={() => handleToolbarClick('italic')}><FaItalic /></ToolbarButton>
                         <ToolbarButton title="引用" onClick={() => handleToolbarClick('blockquote')}><FaQuoteLeft /></ToolbarButton>
                         <ToolbarButton title="順序なしリスト" onClick={() => handleToolbarClick('ul')}><FaListUl /></ToolbarButton>
                         <ToolbarButton title="順序付きリスト" onClick={() => handleToolbarClick('ol')}><FaListOl /></ToolbarButton>
                         <ToolbarButton title="コード" onClick={() => handleToolbarClick('code')}><FaCode /></ToolbarButton>
-                        <ToolbarButton title="リンク" onClick={() => handleToolbarClick('link')}><FaLink /></ToolbarButton>
+                        <ToolbarButton title="リンク (Ctrl/Cmd+K)" onClick={() => handleToolbarClick('link')}><FaLink /></ToolbarButton>
                         <ToolbarButton title="画像" onClick={() => handleToolbarClick('image')}><FaImage /></ToolbarButton>
                         <ToolbarButton title="表" onClick={() => handleToolbarClick('table')}><FaTable /></ToolbarButton>
-                        <ToolbarButton title="伏字" onClick={() => handleToolbarClick('spoiler')}><FaEyeSlash /></ToolbarButton>
                     </Toolbar>
                     <EditorTextarea
                         ref={textareaRef}
                         value={editingContent}
                         onChange={handleContentChange}
+                        onKeyDown={handleKeyDown}
                         placeholder="マークダウンでノートを記述..."
                     />
                 </EditorWrapper>

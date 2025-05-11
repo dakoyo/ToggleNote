@@ -1,7 +1,8 @@
+// src/components/MarkdownPreview.js
 import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import DOMPurify from 'dompurify'; // DOMPurifyをインポート
 import { preprocessSpoilers } from '../utils/markdownUtils';
 
 export const MarkdownPreviewWrapper = styled.div``;
@@ -10,8 +11,8 @@ const MarkdownPreviewComponent = React.memo(({ content }) => {
     const processedContent = useMemo(() => {
         if (typeof content !== 'string') return '';
         const preprocessed = preprocessSpoilers(content);
-        const html = marked.parse(preprocessed);
-        const cleanHtml = DOMPurify.sanitize(html);
+        const rawHtml = marked.parse(preprocessed);
+        const cleanHtml = DOMPurify.sanitize(rawHtml);
         return cleanHtml;
     }, [content]);
 
