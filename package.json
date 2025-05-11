@@ -2,7 +2,7 @@
   "name": "fomula-project",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://dakoyo.github.io/togglenote",
+  "homepage": "https://dakoyo.github.io/ToggleNote",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
