@@ -296,7 +296,7 @@ const indentLine = (textarea, indentSize = 4) => { // indentSize を受け取る
     textarea.focus();
 };
 
-const dedentLine = (textarea, indentSize = 4) => { // indentSize を受け取る
+const dedentLine = (textarea, indentSize = 4) => { 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const value = textarea.value;
